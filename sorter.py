@@ -10,7 +10,7 @@ def read_next_chunk(file, chunk_size):
         line = file.readline()
         if line == "":
             break
-        lines.append(line)
+        lines.append((line))
         end += 1
         if len(lines) == chunk_size:
             yield lines, start
@@ -26,11 +26,44 @@ def sort_chunk(chunk):
 
 def save_chunk(original_file_path, lines, start_index):
     with open("%s.%s" % (original_file_path, start_index), "w") as out:
-        out.writelines(lines)
+        out.writelines(map(str, lines))
 
 
 def merge_chunks(original_file_path, index_list, out_file):
-    pass
+
+    files = dict((idx, open("%s.%s" % (original_file_path, idx)))
+                 for idx in index_list)
+    values = dict((idx, (files[idx].readline())) for idx in index_list)
+    done = set()
+
+    def select_next():
+        value = None
+        chunk = None
+        for idx in index_list:
+            if idx in done:
+                continue
+            if value is None:
+                value = values[idx]
+                chunk = idx
+                continue
+            if values[idx] < value:
+                value = values[idx]
+                chunk = idx
+        if chunk is not None:
+            line = files[chunk].readline()
+            if line == "":
+                done.add(chunk)
+            else:
+                values[chunk] = (line)
+        return value
+
+    while True:
+        next_value = select_next()
+        if next_value is None:
+            break
+        out_file.write(str(next_value))
+    for file in files.values():
+        file.close()
 
 
 def cleanup(original_file_path, indexes):
@@ -55,7 +88,7 @@ def sort_external(file_path, chunk_size):
 if __name__ == "__main__":
     try:
         target, chunk = sys.argv[1:]
-        chunk = int(chunk)
+        chunk = (chunk)
     except ValueError:
         print "Usage: python %s <target> <chunk_size>" % sys.argv[0]
         sys.exit(-1)
